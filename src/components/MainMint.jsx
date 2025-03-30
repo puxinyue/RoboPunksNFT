@@ -1,41 +1,68 @@
 import { useState } from "react";
 import { BrowserProvider, Contract, parseEther } from "ethers";
-import { Box, Button, Flex, Input, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Input, Text, useToast } from "@chakra-ui/react";
 import RoboPunksNFTAbi from "../abi/RoboPunksNFT.json";
 import { contractAddress } from "./comm";
 
-const MainMit = ({ accounts, setAccounts }) => {
-  const [mintAmount, setMintAccount] = useState(1);
+const MainMint = ({ accounts }) => {
+  const [mintAmount, setMintAmount] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
   const isConnected = Boolean(accounts[0]);
+  const toast = useToast();
+
   async function handleMint() {
-    console.log("MainMit === window.ethereum", window.ethereum);
     if (window.ethereum) {
-      const provider = new BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new Contract(
-        contractAddress, // 合约地址
-        RoboPunksNFTAbi,
-        signer
-      );
+      setIsLoading(true);
       try {
+        const provider = new BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const contract = new Contract(contractAddress, RoboPunksNFTAbi, signer);
+
         const response = await contract.mint(mintAmount, {
           value: parseEther((0.02 * mintAmount).toString()),
         });
-        console.log("response", response);
+        
+        // 等待交易确认
+        toast({
+          title: "Transaction Submitted",
+          description: "Please wait for confirmation...",
+          status: "info",
+          duration: null,
+          isClosable: true,
+        });
+        
+        await response.wait();
+        
+        toast({
+          title: "Mint Successful!",
+          description: `Successfully minted ${mintAmount} NFT${mintAmount > 1 ? 's' : ''}`,
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+
       } catch (err) {
         console.log("error", err);
+        toast({
+          title: "Mint Failed",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      } finally {
+        setIsLoading(false);
       }
     }
   }
 
-  const handlerDecrement = () => {
+  const handleDecrement = () => {
     if (mintAmount <= 1) return;
-    setMintAccount(mintAmount - 1);
+    setMintAmount(mintAmount - 1);
   };
 
-  const handlerIncrement = () => {
+  const handleIncrement = () => {
     if (mintAmount >= 3) return;
-    setMintAccount(mintAmount + 1);
+    setMintAmount(mintAmount + 1);
   };
 
   return (
@@ -50,7 +77,7 @@ const MainMit = ({ accounts, setAccounts }) => {
           fontFamily="VT323"
           textShadow="0 2px 2px #000000"
         >
-          It's 2078. Can the RoboPunks NFT save humans from destructive rampnt
+          It's 2078. Can the RoboPunks NFT save humans from destructive rampant
           NFT speculation? Mint Robopunks to find out!
         </Text>
         {isConnected ? (
@@ -66,7 +93,9 @@ const MainMit = ({ accounts, setAccounts }) => {
                 padding="15px"
                 marginTop="10px"
                 marginRight="10px"
-                onClick={handlerDecrement}
+                onClick={handleDecrement}
+                isDisabled={isLoading || mintAmount <= 1}
+                isLoading={isLoading}
               >
                 -
               </Button>
@@ -91,7 +120,9 @@ const MainMit = ({ accounts, setAccounts }) => {
                 padding="15px"
                 marginTop="10px"
                 marginLeft="10px"
-                onClick={handlerIncrement}
+                onClick={handleIncrement}
+                isDisabled={isLoading || mintAmount >= 3}
+                isLoading={isLoading}
               >
                 +
               </Button>
@@ -106,6 +137,8 @@ const MainMit = ({ accounts, setAccounts }) => {
               padding="15px"
               marginTop="10px"
               onClick={handleMint}
+              isLoading={isLoading}
+              loadingText="Minting..."
             >
               Mint Now
             </Button>
@@ -127,4 +160,4 @@ const MainMit = ({ accounts, setAccounts }) => {
   );
 };
 
-export default MainMit;
+export default MainMint;
